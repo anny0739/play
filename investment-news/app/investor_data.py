@@ -125,9 +125,7 @@ def fetch_and_save_investor_data() -> dict[str, dict | None]:
         results[market] = data
         if data is not None and trading_date is not None:
             with get_session() as session:
-                upsert_investor_snapshot(
-                    session, snapshot_date=trading_date, market=market, **data
-                )
+                upsert_investor_snapshot(session, snapshot_date=trading_date, market=market, **data)
             logger.info(
                 "투자자 저장: %s %s 외국인순매수=%.1f억",
                 market,

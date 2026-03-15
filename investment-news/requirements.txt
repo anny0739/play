@@ -1,0 +1,25 @@
+# UI
+streamlit>=1.35.0
+
+# Claude API
+anthropic>=0.49.0
+
+# DB
+sqlalchemy>=2.0.0
+
+# Scheduler
+apscheduler>=3.10.0
+
+# Market data (API 키 불필요)
+pykrx>=1.0.47
+yfinance>=0.2.40
+
+# Utilities
+python-dotenv>=1.0.0
+pytz>=2024.1
+
+# Dev/Quality
+black>=24.0.0
+ruff>=0.4.0
+pytest>=8.0.0
+pytest-mock>=3.12.0

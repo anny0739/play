@@ -1,26 +1,25 @@
+from __future__ import annotations
+
 from datetime import UTC, date, datetime
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from app.db.models import Article, Digest, MarketSnapshot, Note, Topic
-
+from app.db.models import Article, Digest, InvestorSnapshot, MarketSnapshot, Note, Topic
 
 # ── Topics ──────────────────────────────────────────────────────────────────
+
 
 def get_active_topics(session: Session) -> list[Topic]:
     return session.query(Topic).filter(Topic.is_active == True).all()
 
 
 def get_topics_by_category(session: Session, category: str) -> list[Topic]:
-    return (
-        session.query(Topic)
-        .filter(Topic.category == category, Topic.is_active == True)
-        .all()
-    )
+    return session.query(Topic).filter(Topic.category == category, Topic.is_active == True).all()
 
 
 # ── Articles ─────────────────────────────────────────────────────────────────
+
 
 def upsert_article(session: Session, **kwargs) -> tuple[Article, bool]:
     """Return (article, created). If URL already exists, skip insert."""
@@ -62,7 +61,10 @@ def update_article_summary(session: Session, article_id: int, summary: str):
 
 # ── Notes ─────────────────────────────────────────────────────────────────────
 
-def create_note(session: Session, article_id: int, content: str, sentiment: str | None = None) -> Note:
+
+def create_note(
+    session: Session, article_id: int, content: str, sentiment: str | None = None
+) -> Note:
     note = Note(article_id=article_id, content=content, sentiment=sentiment)
     session.add(note)
     session.flush()
@@ -84,18 +86,16 @@ def delete_note(session: Session, note_id: int):
 
 
 def get_all_notes(session: Session) -> list[Note]:
-    return (
-        session.query(Note)
-        .join(Article)
-        .order_by(desc(Note.created_at))
-        .all()
-    )
+    return session.query(Note).join(Article).order_by(desc(Note.created_at)).all()
 
 
 # ── Market Snapshots ──────────────────────────────────────────────────────────
 
+
 def upsert_market_snapshot(session: Session, snapshot_date: str, **kwargs) -> MarketSnapshot:
-    existing = session.query(MarketSnapshot).filter(MarketSnapshot.snapshot_date == snapshot_date).first()
+    existing = (
+        session.query(MarketSnapshot).filter(MarketSnapshot.snapshot_date == snapshot_date).first()
+    )
     if existing:
         for k, v in kwargs.items():
             setattr(existing, k, v)
@@ -113,11 +113,10 @@ def get_latest_market_snapshot(session: Session) -> MarketSnapshot | None:
 
 # ── Investor Snapshots ────────────────────────────────────────────────────────
 
+
 def upsert_investor_snapshot(
     session: Session, snapshot_date: str, market: str, **kwargs
-) -> "InvestorSnapshot":
-    from app.db.models import InvestorSnapshot
-
+) -> InvestorSnapshot:
     existing = (
         session.query(InvestorSnapshot)
         .filter(
@@ -137,9 +136,7 @@ def upsert_investor_snapshot(
     return snap
 
 
-def get_latest_investor_snapshot(session: Session, market: str) -> "InvestorSnapshot | None":
-    from app.db.models import InvestorSnapshot
-
+def get_latest_investor_snapshot(session: Session, market: str) -> InvestorSnapshot | None:
     return (
         session.query(InvestorSnapshot)
         .filter(InvestorSnapshot.market == market)
@@ -149,6 +146,7 @@ def get_latest_investor_snapshot(session: Session, market: str) -> "InvestorSnap
 
 
 # ── Digests ───────────────────────────────────────────────────────────────────
+
 
 def get_or_create_digest(session: Session, digest_date: str) -> tuple[Digest, bool]:
     existing = session.query(Digest).filter(Digest.digest_date == digest_date).first()

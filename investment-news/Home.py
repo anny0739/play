@@ -160,6 +160,7 @@ with col1:
                 counts = fetch_and_save_all(topics)
                 market = fetch_and_save_market_data()
                 from app.investor_data import fetch_and_save_investor_data
+
                 fetch_and_save_investor_data()
                 notify_fetch_complete(counts, market)
 
@@ -178,6 +179,7 @@ with col2:
 
                 market = fetch_and_save_market_data()
                 from app.investor_data import fetch_and_save_investor_data
+
                 fetch_and_save_investor_data()
                 st.success("✅ 지수 및 투자자 데이터 업데이트 완료!")
                 st.rerun()
@@ -201,4 +203,6 @@ if scheduler.running:
         next_str = next_run.strftime("%Y-%m-%d %H:%M %Z") if next_run else "—"
         st.write(f"- `{job.id}`: 다음 실행 → {next_str}")
 
-st.info("💡 매일 **07:00 KST**에 뉴스를 자동 수집합니다. **16:10 KST**에 국내 지수를 업데이트합니다.")
+st.info(
+    "💡 매일 **07:00 KST**에 뉴스를 자동 수집합니다. **16:10 KST**에 국내 지수를 업데이트합니다."
+)

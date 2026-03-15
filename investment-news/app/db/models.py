@@ -24,7 +24,9 @@ class Topic(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    category: Mapped[str] = mapped_column(String(50), nullable=False)  # stock_kr/stock_us/realestate/macro
+    category: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # stock_kr/stock_us/realestate/macro
     search_query: Mapped[str] = mapped_column(String(200), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -55,7 +57,9 @@ class Note(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     article_id: Mapped[int] = mapped_column(Integer, ForeignKey("articles.id"), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    sentiment: Mapped[str | None] = mapped_column(String(20), nullable=True)  # bullish/bearish/neutral
+    sentiment: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # bullish/bearish/neutral
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
