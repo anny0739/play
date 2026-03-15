@@ -1,4 +1,4 @@
-"""InvestorSnapshot CRUD + KRX fetcher 유닛 테스트."""
+"""InvestorSnapshot CRUD + 네이버 API fetcher 유닛 테스트."""
 
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +21,7 @@ def session():
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
+
 def test_upsert_investor_snapshot_creates(session):
     from app.db.crud import get_latest_investor_snapshot, upsert_investor_snapshot
 
@@ -28,24 +29,14 @@ def test_upsert_investor_snapshot_creates(session):
         session,
         snapshot_date="2026-03-14",
         market="KOSPI",
-        foreign_buy=5000.0,
-        foreign_sell=3000.0,
         foreign_net=2000.0,
-        inst_buy=1000.0,
-        inst_sell=1200.0,
         inst_net=-200.0,
-        indiv_buy=4000.0,
-        indiv_sell=4800.0,
         indiv_net=-800.0,
     )
     session.commit()
     assert snap.id is not None
     assert snap.market == "KOSPI"
     assert snap.foreign_net == 2000.0
-
-    latest = get_latest_investor_snapshot(session, "KOSPI")
-    assert latest is not None
-    assert latest.foreign_buy == 5000.0
 
 
 def test_upsert_investor_snapshot_updates(session):
@@ -85,74 +76,51 @@ def test_get_latest_investor_snapshot_returns_none_when_empty(session):
     assert get_latest_investor_snapshot(session, "KOSPI") is None
 
 
-# ── Fetcher ───────────────────────────────────────────────────────────────────
+# ── Fetcher (네이버 API) ────────────────────────────────────────────────────
 
-def _make_krx_response(rows: list[dict]) -> MagicMock:
+NAVER_SAMPLE_RESPONSE = {
+    "bizdate": "20260313",
+    "personalValue": "+24,512",
+    "foreignValue": "-14,502",
+    "institutionalValue": "-10,434",
+}
+
+
+def test_fetch_investor_trend_success():
+    from app.investor_data import fetch_investor_trend
+
     mock_resp = MagicMock()
     mock_resp.ok = True
-    mock_resp.json.return_value = {"output": rows}
-    return mock_resp
+    mock_resp.json.return_value = NAVER_SAMPLE_RESPONSE
 
-
-KRX_SAMPLE_OUTPUT = [
-    {
-        "INVST_TP_NM": "개인",
-        "BID_TRDVAL": "400000000000",
-        "ASK_TRDVAL": "480000000000",
-        "NETBID_TRDVAL": "-80000000000",
-    },
-    {
-        "INVST_TP_NM": "외국인",
-        "BID_TRDVAL": "500000000000",
-        "ASK_TRDVAL": "300000000000",
-        "NETBID_TRDVAL": "200000000000",
-    },
-    {
-        "INVST_TP_NM": "기관합계",
-        "BID_TRDVAL": "100000000000",
-        "ASK_TRDVAL": "120000000000",
-        "NETBID_TRDVAL": "-20000000000",
-    },
-]
-
-
-def test_fetch_investor_data_success():
-    from app.investor_data import fetch_investor_trading
-
-    mock_sess = MagicMock()
-    mock_sess.get.return_value = MagicMock(ok=True)
-    mock_sess.post.return_value = _make_krx_response(KRX_SAMPLE_OUTPUT)
-
-    with patch("app.investor_data.requests.Session", return_value=mock_sess):
-        result = fetch_investor_trading("KOSPI", "2026-03-14")
+    with patch("app.investor_data.requests.get", return_value=mock_resp):
+        result = fetch_investor_trend("KOSPI")
 
     assert result is not None
-    assert result["foreign_net"] == pytest.approx(2000.0, rel=0.01)
-    assert result["inst_net"] == pytest.approx(-200.0, rel=0.01)
-    assert result["indiv_net"] == pytest.approx(-800.0, rel=0.01)
+    assert result["snapshot_date"] == "2026-03-13"
+    assert result["foreign_net"] == pytest.approx(-14502.0)
+    assert result["inst_net"] == pytest.approx(-10434.0)
+    assert result["indiv_net"] == pytest.approx(24512.0)
 
 
-def test_fetch_investor_data_empty_output():
-    from app.investor_data import fetch_investor_trading
+def test_fetch_investor_trend_api_error():
+    from app.investor_data import fetch_investor_trend
 
-    mock_sess = MagicMock()
-    mock_sess.get.return_value = MagicMock(ok=True)
-    mock_sess.post.return_value = _make_krx_response([])
+    mock_resp = MagicMock()
+    mock_resp.ok = False
+    mock_resp.status_code = 500
 
-    with patch("app.investor_data.requests.Session", return_value=mock_sess):
-        result = fetch_investor_trading("KOSPI", "2026-03-14")
+    with patch("app.investor_data.requests.get", return_value=mock_resp):
+        result = fetch_investor_trend("KOSPI")
 
     assert result is None
 
 
-def test_fetch_investor_data_network_error():
-    from app.investor_data import fetch_investor_trading
+def test_fetch_investor_trend_network_error():
+    from app.investor_data import fetch_investor_trend
 
-    mock_sess = MagicMock()
-    mock_sess.get.side_effect = Exception("Connection refused")
-
-    with patch("app.investor_data.requests.Session", return_value=mock_sess):
-        result = fetch_investor_trading("KOSPI", "2026-03-14")
+    with patch("app.investor_data.requests.get", side_effect=Exception("Connection refused")):
+        result = fetch_investor_trend("KOSPI")
 
     assert result is None
 
@@ -161,16 +129,17 @@ def test_fetch_and_save_investor_data_calls_upsert():
     from app.investor_data import fetch_and_save_investor_data
 
     mock_data = {
-        "foreign_buy": 5000.0, "foreign_sell": 3000.0, "foreign_net": 2000.0,
-        "inst_buy": 1000.0, "inst_sell": 1200.0, "inst_net": -200.0,
-        "indiv_buy": 4000.0, "indiv_sell": 4800.0, "indiv_net": -800.0,
+        "snapshot_date": "2026-03-13",
+        "foreign_net": -14502.0,
+        "inst_net": -10434.0,
+        "indiv_net": 24512.0,
     }
     mock_ctx = MagicMock()
     mock_ctx.__enter__ = MagicMock(return_value=MagicMock())
     mock_ctx.__exit__ = MagicMock(return_value=False)
 
     with (
-        patch("app.investor_data.fetch_investor_trading", return_value=mock_data),
+        patch("app.investor_data.fetch_investor_trend", return_value=mock_data),
         patch("app.investor_data.get_session", return_value=mock_ctx),
         patch("app.investor_data.upsert_investor_snapshot") as mock_upsert,
     ):

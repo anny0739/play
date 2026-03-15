@@ -14,6 +14,9 @@ apscheduler>=3.10.0
 pykrx>=1.0.47
 yfinance>=0.2.40
 
+# News (RSS)
+feedparser>=6.0.0
+
 # Utilities
 python-dotenv>=1.0.0
 pytz>=2024.1

@@ -1,7 +1,6 @@
-"""KRX 투자자별 매매 현황 수집: 외국인/기관/개인 매수·매도·순매수."""
+"""투자자별 매매 현황 수집: 네이버 증권 API → 외국인/기관/개인 순매수."""
 
 import logging
-from datetime import date, timedelta
 
 import requests
 
@@ -10,126 +9,71 @@ from app.db.database import get_session
 
 logger = logging.getLogger(__name__)
 
-KRX_SESSION_URL = "https://data.krx.co.kr/contents/MDC/MDI/outerLoader/index.cmd"
-KRX_DATA_URL = "https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd"
+# 네이버 모바일 증권 API (인증 불필요)
+_NAVER_TREND_URL = "https://m.stock.naver.com/api/index/{market}/trend"
 
-MARKET_IDS = {"KOSPI": "STK", "KOSDAQ": "KSQ"}
-
-# KRX INVST_TP_NM 값 → 내부 키 접두어 매핑
-INVST_KEY_MAP = {"외국인": "foreign", "기관합계": "inst", "개인": "indiv"}
-
-# KRX BID_TRDVAL 등은 원(KRW) 단위 → 억원으로 변환
-_WON_TO_EOKWON = 1e8
+_HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
-def _parse_eokwon(value_str: str) -> float:
-    """문자열 원 단위 → 억원(float)."""
-    return round(int(value_str.replace(",", "")) / _WON_TO_EOKWON, 2)
+def _parse_value(val_str: str) -> float:
+    """'+24,512' 또는 '-829' 형태 → 억원(float)."""
+    return float(val_str.replace(",", "").replace("+", ""))
 
 
-def fetch_investor_trading(market: str, target_date: str) -> dict | None:
-    """
-    KRX에서 특정 날짜의 투자자별 매매 데이터 수집.
+def fetch_investor_trend(market: str) -> dict | None:
+    """네이버 증권 API에서 투자자별 순매수 데이터 수집.
 
     Args:
         market: 'KOSPI' or 'KOSDAQ'
-        target_date: 'YYYY-MM-DD'
 
     Returns:
-        dict(foreign/inst/indiv × buy/sell/net in 억원) or None
+        dict(foreign_net, inst_net, indiv_net in 억원, bizdate) or None
     """
-    mkt_id = MARKET_IDS.get(market)
-    if mkt_id is None:
-        logger.error("알 수 없는 시장: %s", market)
-        return None
-
-    date_str = target_date.replace("-", "")
     try:
-        sess = requests.Session()
-        sess.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                ),
-                "Referer": "https://data.krx.co.kr/",
-            }
-        )
-        sess.get(KRX_SESSION_URL, timeout=10)  # 세션 쿠키 취득
-
-        resp = sess.post(
-            KRX_DATA_URL,
-            data={
-                "bld": "dbms/MDC/STAT/standard/MDCSTAT02201",
-                "mktId": mkt_id,
-                "strtDd": date_str,
-                "endDd": date_str,
-                "etf": "",
-                "etn": "",
-                "els": "",
-                "share": "1",
-                "money": "1",
-                "csvxls_isNo": "false",
-            },
-            timeout=15,
-        )
+        url = _NAVER_TREND_URL.format(market=market)
+        resp = requests.get(url, headers=_HEADERS, timeout=10)
         if not resp.ok:
-            logger.warning("KRX API 오류 %s: %s %s", resp.status_code, market, target_date)
+            logger.warning("네이버 API 오류 %s: %s", market, resp.status_code)
             return None
 
-        rows = resp.json().get("output", [])
-        if not rows:
-            logger.info("KRX 데이터 없음 (휴일?): %s %s", market, target_date)
+        data = resp.json()
+        bizdate = data.get("bizdate", "")
+        if not bizdate:
+            logger.warning("네이버 API 응답에 bizdate 없음: %s", market)
             return None
 
-        result: dict[str, float | None] = {}
-        for row in rows:
-            prefix = INVST_KEY_MAP.get(row.get("INVST_TP_NM", ""))
-            if prefix is None:
-                continue
-            try:
-                result[f"{prefix}_buy"] = _parse_eokwon(row["BID_TRDVAL"])
-                result[f"{prefix}_sell"] = _parse_eokwon(row["ASK_TRDVAL"])
-                result[f"{prefix}_net"] = _parse_eokwon(row["NETBID_TRDVAL"])
-            except (KeyError, ValueError) as e:
-                logger.warning("파싱 오류 %s %s: %s", market, prefix, e)
-                result[f"{prefix}_buy"] = None
-                result[f"{prefix}_sell"] = None
-                result[f"{prefix}_net"] = None
+        # bizdate: '20260313' → '2026-03-13'
+        snapshot_date = f"{bizdate[:4]}-{bizdate[4:6]}-{bizdate[6:8]}"
 
-        if "foreign_net" not in result:
-            return None
-        return result
+        return {
+            "snapshot_date": snapshot_date,
+            "foreign_net": _parse_value(data["foreignValue"]),
+            "inst_net": _parse_value(data["institutionalValue"]),
+            "indiv_net": _parse_value(data["personalValue"]),
+        }
 
     except Exception as e:
-        logger.error("KRX 투자자 수집 오류 %s %s: %s", market, target_date, e)
+        logger.error("네이버 투자자 수집 오류 %s: %s", market, e)
         return None
-
-
-def fetch_investor_trading_latest(market: str) -> tuple[str | None, dict | None]:
-    """최근 5일 소급하여 가장 최신 영업일 데이터 수집."""
-    for days_back in range(5):
-        target = (date.today() - timedelta(days=days_back)).isoformat()
-        data = fetch_investor_trading(market, target)
-        if data is not None:
-            return target, data
-    logger.warning("최근 5일 내 KRX 데이터 없음: %s", market)
-    return None, None
 
 
 def fetch_and_save_investor_data() -> dict[str, dict | None]:
     """KOSPI/KOSDAQ 투자자 데이터 수집 후 DB 저장."""
     results: dict[str, dict | None] = {}
     for market in ("KOSPI", "KOSDAQ"):
-        trading_date, data = fetch_investor_trading_latest(market)
+        data = fetch_investor_trend(market)
         results[market] = data
-        if data is not None and trading_date is not None:
+        if data is not None:
+            snapshot_date = data["snapshot_date"]
+            upsert_kwargs = {k: v for k, v in data.items() if k != "snapshot_date"}
             with get_session() as session:
-                upsert_investor_snapshot(session, snapshot_date=trading_date, market=market, **data)
+                upsert_investor_snapshot(
+                    session, snapshot_date=snapshot_date, market=market, **upsert_kwargs
+                )
             logger.info(
-                "투자자 저장: %s %s 외국인순매수=%.1f억",
+                "투자자 저장: %s %s 외국인순매수=%.0f억",
                 market,
-                trading_date,
+                snapshot_date,
                 data.get("foreign_net") or 0,
             )
         else:

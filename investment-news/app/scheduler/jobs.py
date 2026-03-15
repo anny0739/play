@@ -4,6 +4,7 @@ import logging
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from app.config import KST
 
@@ -13,20 +14,15 @@ _scheduler: BackgroundScheduler | None = None
 
 
 def daily_news_job():
-    """07:00 KST — 뉴스 수집 + macOS 알림."""
-    logger.info("[스케줄러] 뉴스 수집 시작...")
+    """07:00 KST — RSS 뉴스 수집 + macOS 알림."""
+    logger.info("[스케줄러] RSS 뉴스 수집 시작...")
     try:
-        from app.claude.aggregator import fetch_and_save_all
-        from app.db.crud import get_active_topics
-        from app.db.database import get_session
         from app.notifier import notify_fetch_complete
+        from app.rss_collector import fetch_rss_articles
 
-        with get_session() as session:
-            topics = get_active_topics(session)
-
-        counts = fetch_and_save_all(topics)
+        counts = fetch_rss_articles()
         notify_fetch_complete(counts)
-        logger.info("[스케줄러] 뉴스 수집 완료: %s", counts)
+        logger.info("[스케줄러] RSS 뉴스 수집 완료: %s", counts)
     except Exception as e:
         logger.error("[스케줄러] 뉴스 수집 실패: %s", e)
 
@@ -74,7 +70,7 @@ def get_scheduler() -> BackgroundScheduler:
         )
         _scheduler.add_job(
             investor_data_job,
-            CronTrigger(hour=16, minute=15, timezone=KST),
+            IntervalTrigger(hours=1),
             id="investor_data",
             replace_existing=True,
         )

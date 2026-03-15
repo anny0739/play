@@ -1,5 +1,18 @@
 {
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/areum.k/playground/play/investment-news && pytest --tb=short -q 2>&1 && ruff check . 2>&1"
+          }
+        ]
+      }
+    ]
   }
 }

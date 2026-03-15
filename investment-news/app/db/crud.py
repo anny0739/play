@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 
 from sqlalchemy import desc
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import Article, Digest, InvestorSnapshot, MarketSnapshot, Note, Topic
 
@@ -34,10 +34,10 @@ def upsert_article(session: Session, **kwargs) -> tuple[Article, bool]:
 
 
 def get_today_articles(session: Session, category: str | None = None) -> list[Article]:
-    today = date.today().isoformat()
     query = (
         session.query(Article)
         .join(Topic)
+        .options(joinedload(Article.topic))
         .filter(Article.fetched_at >= datetime.combine(date.today(), datetime.min.time()))
     )
     if category:

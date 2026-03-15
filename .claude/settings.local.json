@@ -12,7 +12,18 @@
       "Bash(docker run *)",
       "Bash(pytest *)",
       "Bash(ruff check *)",
-      "Bash(black *)"
+      "Bash(black *)",
+      "Bash(cd:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:www.ainewt.ai)",
+      "WebFetch(domain:www.yonhapnewstv.co.kr)",
+      "WebFetch(domain:www.hankyung.com)",
+      "WebFetch(domain:junpyopark.github.io)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:www.mk.co.kr)",
+      "WebFetch(domain:kenees.com)",
+      "Bash(pip3 list:*)"
     ]
   }
 }

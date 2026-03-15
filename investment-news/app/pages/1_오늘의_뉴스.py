@@ -1,5 +1,7 @@
 """오늘 수집된 뉴스 피드 + 지수 스냅샷."""
 
+import html as _html
+
 import streamlit as st
 
 from app.db.crud import get_latest_market_snapshot, get_today_articles
@@ -67,24 +69,42 @@ for cat in CATEGORY_ORDER:
     if cat not in grouped:
         continue
     arts = grouped[cat]
-    st.subheader(f"{CATEGORY_LABELS.get(cat, cat)} ({len(arts)}건)")
-
+    st.markdown(
+        f'<p style="font-size:17px;font-weight:700;margin:20px 0 4px;">'
+        f"{CATEGORY_LABELS.get(cat, cat)} "
+        f'<span style="font-size:13px;font-weight:400;opacity:0.45;">{len(arts)}건</span></p>',
+        unsafe_allow_html=True,
+    )
+    rows_html = ""
     for art in arts:
-        with st.container(border=True):
-            col1, col2 = st.columns([5, 1])
-            with col1:
-                st.markdown(f"**[{art.title}]({art.url})**")
-                if art.source:
-                    st.caption(f"출처: {art.source}")
-                if art.summary:
-                    st.write(art.summary)
-                elif art.raw_content:
-                    st.write(art.raw_content[:200] + "..." if len(art.raw_content) > 200 else art.raw_content)
-            with col2:
-                note_count = len(art.notes)
-                if note_count:
-                    st.badge(f"메모 {note_count}", icon="📝")
-                # 메모 추가는 Phase 2에서 st.dialog로 구현
-                st.link_button("기사 보기", art.url, use_container_width=True)
-
-    st.divider()
+        raw = art.raw_content or art.summary or ""
+        snippet = _html.escape(raw[:15] + ("…" if len(raw) > 15 else ""))
+        title_esc = _html.escape(art.title)
+        source = _html.escape(art.source or "")
+        time_str = art.fetched_at.strftime("%m/%d") if art.fetched_at else ""
+        meta = " · ".join(p for p in [source, time_str] if p)
+        note_count = len(art.notes)
+        note_badge = (
+            f'<span style="display:inline-block;background:rgba(0,122,255,0.12);'
+            f"color:#007aff;font-size:10px;font-weight:600;padding:1px 7px;"
+            f'border-radius:10px;margin-left:6px;">메모 {note_count}</span>'
+            if note_count
+            else ""
+        )
+        snippet_div = (
+            f'<div style="font-size:13px;opacity:0.55;margin-bottom:3px;">{snippet}</div>'
+            if snippet
+            else ""
+        )
+        rows_html += (
+            f'<a href="{art.url}" target="_blank"'
+            f' style="text-decoration:none;color:inherit;display:block;">'
+            f'<div style="padding:12px 0;border-bottom:1px solid rgba(128,128,128,0.15);">'
+            f'<div style="font-size:14px;font-weight:600;line-height:1.45;margin-bottom:4px;">'
+            f"{title_esc}{note_badge}</div>"
+            f"{snippet_div}"
+            f'<div style="font-size:11px;opacity:0.4;">{meta}</div>'
+            f"</div></a>"
+        )
+    st.markdown(rows_html, unsafe_allow_html=True)
+    st.write("")

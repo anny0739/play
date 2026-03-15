@@ -1,5 +1,6 @@
 """패턴 1+4: Agentic Loop + 주제별 서브인보케이션 (ThreadPoolExecutor 병렬)."""
 
+import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date

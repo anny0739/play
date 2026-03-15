@@ -1,12 +1,13 @@
 """재테크 뉴스 애그리게이터 — 홈 화면."""
 
+import html as _html
 import logging
 
 import streamlit as st
 import streamlit.components.v1 as components
 
 from app.config import ANTHROPIC_API_KEY
-from app.db.crud import get_active_topics, get_latest_investor_snapshot, get_latest_market_snapshot
+from app.db.crud import get_latest_investor_snapshot, get_latest_market_snapshot
 from app.db.database import get_session, init_db
 from app.scheduler.jobs import start_scheduler
 
@@ -89,16 +90,14 @@ def _render_investor_panel(title: str, inv) -> str:
             f'<span style="font-size:13px;">데이터 없음</span></div>'
         )
     rows_html = ""
-    for label, buy, sell, net in [
-        ("외국인", inv.foreign_buy, inv.foreign_sell, inv.foreign_net),
-        ("기관", inv.inst_buy, inv.inst_sell, inv.inst_net),
-        ("개인", inv.indiv_buy, inv.indiv_sell, inv.indiv_net),
+    for label, net in [
+        ("외국인", inv.foreign_net),
+        ("기관", inv.inst_net),
+        ("개인", inv.indiv_net),
     ]:
         rows_html += (
             f"<tr>"
             f'<td style="padding:6px 12px;font-weight:bold;">{label}</td>'
-            f'<td style="padding:6px 12px;text-align:right;">{_fmt_eokwon(buy)}</td>'
-            f'<td style="padding:6px 12px;text-align:right;">{_fmt_eokwon(sell)}</td>'
             f'<td style="padding:6px 12px;text-align:right;color:{_net_color(net)};'
             f'font-weight:bold;">{_fmt_eokwon(net)}</td>'
             f"</tr>"
@@ -110,8 +109,6 @@ def _render_investor_panel(title: str, inv) -> str:
         f'<table style="width:100%;border-collapse:collapse;font-size:14px;">'
         f'<thead><tr style="border-bottom:1px solid #ddd;color:#666;font-size:12px;">'
         f'<th style="padding:4px 12px;text-align:left;">구분</th>'
-        f'<th style="padding:4px 12px;text-align:right;">매수</th>'
-        f'<th style="padding:4px 12px;text-align:right;">매도</th>'
         f'<th style="padding:4px 12px;text-align:right;">순매수</th>'
         f"</tr></thead><tbody>{rows_html}</tbody></table></div>"
     )
@@ -143,48 +140,63 @@ components.html(carousel_html, height=200)
 
 st.divider()
 
-# ── 수동 수집 버튼 ─────────────────────────────────────────────────────────────
-st.subheader("🔄 수동 수집")
-col1, col2 = st.columns([1, 3])
-with col1:
-    if st.button("지금 뉴스 수집", type="primary", use_container_width=True):
-        with st.spinner("뉴스를 수집하는 중입니다..."):
-            try:
-                from app.claude.aggregator import fetch_and_save_all
-                from app.market_data import fetch_and_save_market_data
-                from app.notifier import notify_fetch_complete
+# ── 오늘의 뉴스 ──────────────────────────────────────────────────────────────
+from app.db.crud import get_today_articles  # noqa: E402
 
-                with get_session() as session:
-                    topics = get_active_topics(session)
+st.subheader("📰 오늘의 뉴스")
 
-                counts = fetch_and_save_all(topics)
-                market = fetch_and_save_market_data()
-                from app.investor_data import fetch_and_save_investor_data
+CATEGORY_LABELS = {
+    "stock_kr": "🇰🇷 국내 주식",
+    "stock_us": "🇺🇸 해외 주식",
+    "realestate": "🏠 부동산",
+    "macro": "📊 거시경제",
+}
 
-                fetch_and_save_investor_data()
-                notify_fetch_complete(counts, market)
+with get_session() as session:
+    today_articles = get_today_articles(session)
 
-                total = sum(counts.values())
-                st.success(f"✅ 총 {total}건 수집 완료!")
-                st.json(counts)
-                st.rerun()
-            except Exception as e:
-                st.error(f"수집 오류: {e}")
+if today_articles:
+    by_cat: dict[str, list] = {}
+    for art in today_articles:
+        cat = art.topic.category
+        by_cat.setdefault(cat, []).append(art)
 
-with col2:
-    if st.button("지수만 업데이트", use_container_width=True):
-        with st.spinner("지수 데이터를 업데이트하는 중..."):
-            try:
-                from app.market_data import fetch_and_save_market_data
-
-                market = fetch_and_save_market_data()
-                from app.investor_data import fetch_and_save_investor_data
-
-                fetch_and_save_investor_data()
-                st.success("✅ 지수 및 투자자 데이터 업데이트 완료!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"지수 업데이트 오류: {e}")
+    for cat in ["stock_kr", "stock_us", "realestate", "macro"]:
+        articles = by_cat.get(cat, [])
+        if not articles:
+            continue
+        label = CATEGORY_LABELS.get(cat, cat)
+        st.markdown(
+            f'<p style="font-size:15px;font-weight:700;margin:16px 0 0;">{label} '
+            f'<span style="font-size:12px;font-weight:400;opacity:0.45;">{len(articles)}건</span></p>',
+            unsafe_allow_html=True,
+        )
+        rows_html = ""
+        for art in articles:
+            raw = art.raw_content or ""
+            snippet = _html.escape(raw[:15] + ("…" if len(raw) > 15 else ""))
+            title_esc = _html.escape(art.title)
+            source = _html.escape(art.source or "")
+            time_str = art.fetched_at.strftime("%m/%d") if art.fetched_at else ""
+            meta = " · ".join(p for p in [source, time_str] if p)
+            snippet_div = (
+                f'<div style="font-size:12px;opacity:0.55;margin-bottom:2px;">{snippet}</div>'
+                if snippet
+                else ""
+            )
+            rows_html += (
+                f'<a href="{art.url}" target="_blank"'
+                f' style="text-decoration:none;color:inherit;display:block;">'
+                f'<div style="padding:10px 0;border-bottom:1px solid rgba(128,128,128,0.15);">'
+                f'<div style="font-size:13px;font-weight:600;line-height:1.45;margin-bottom:3px;">'
+                f"{title_esc}</div>"
+                f"{snippet_div}"
+                f'<div style="font-size:11px;opacity:0.4;">{meta}</div>'
+                f"</div></a>"
+            )
+        st.markdown(rows_html, unsafe_allow_html=True)
+else:
+    st.info("오늘 수집된 뉴스가 없습니다. 위 버튼으로 수집해 보세요.")
 
 st.divider()
 
@@ -204,5 +216,77 @@ if scheduler.running:
         st.write(f"- `{job.id}`: 다음 실행 → {next_str}")
 
 st.info(
-    "💡 매일 **07:00 KST**에 뉴스를 자동 수집합니다. **16:10 KST**에 국내 지수를 업데이트합니다."
+    "💡 매일 **07:00 KST**에 뉴스를 자동 수집합니다. "
+    "**16:10 KST**에 국내 지수를 업데이트하며, 투자자 매매 현황은 **매 1시간**마다 갱신됩니다."
 )
+
+st.divider()
+
+# ── 수동 수집 버튼 ─────────────────────────────────────────────────────────────
+st.subheader("🔄 수동 수집")
+col1, col2 = st.columns([1, 3])
+with col1:
+    if st.button("지금 뉴스 수집", type="primary", use_container_width=True):
+        with st.spinner("뉴스를 수집하는 중입니다..."):
+            from app.investor_data import fetch_and_save_investor_data
+            from app.market_data import fetch_and_save_market_data
+            from app.notifier import notify_fetch_complete
+            from app.rss_collector import fetch_rss_articles
+
+            counts: dict[str, int] = {}
+            market = None
+            errors: list[str] = []
+
+            # RSS 뉴스 수집
+            try:
+                counts = fetch_rss_articles()
+            except Exception as e:
+                errors.append(f"뉴스 수집: {e}")
+
+            # 시장 지수 수집
+            try:
+                market = fetch_and_save_market_data()
+            except Exception as e:
+                errors.append(f"시장 지수: {e}")
+
+            # 투자자 데이터 수집
+            try:
+                fetch_and_save_investor_data()
+            except Exception as e:
+                errors.append(f"투자자 데이터: {e}")
+
+            notify_fetch_complete(counts, market)
+
+            total_new = sum(counts.values())
+            for err in errors:
+                st.error(f"⚠️ {err}")
+
+            if total_new:
+                st.success(f"✅ 신규 {total_new}건 수집 완료!")
+                st.json(counts)
+            else:
+                # 오늘 기존 수집된 기사 수 표시
+                from app.db.crud import get_today_articles
+
+                with get_session() as sess:
+                    existing = len(get_today_articles(sess))
+                if existing:
+                    st.info(f"📰 신규 기사가 없습니다. (오늘 수집된 기사: {existing}건)")
+                else:
+                    st.warning("⚠️ 오늘 수집된 기사가 없습니다. RSS 피드를 확인해 주세요.")
+            st.rerun()
+
+with col2:
+    if st.button("지수만 업데이트", use_container_width=True):
+        with st.spinner("지수 데이터를 업데이트하는 중..."):
+            try:
+                from app.market_data import fetch_and_save_market_data
+
+                market = fetch_and_save_market_data()
+                from app.investor_data import fetch_and_save_investor_data
+
+                fetch_and_save_investor_data()
+                st.success("✅ 지수 및 투자자 데이터 업데이트 완료!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"지수 업데이트 오류: {e}")
