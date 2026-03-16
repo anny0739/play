@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from datetime import date
 from diary.notion import NotionDiaryClient
 
-
 PARENT_ID = "2dbad192-0f86-80b7-bb55-e9614da3413a"
 
 
@@ -85,9 +84,21 @@ def test_extract_text_multiple_block_types():
     mock_client = MagicMock()
     mock_client.blocks.children.list.return_value = {
         "results": [
-            {"type": "heading_1", "heading_1": {"rich_text": [{"plain_text": "제목"}]}, "has_children": False},
-            {"type": "paragraph", "paragraph": {"rich_text": [{"plain_text": "본문"}]}, "has_children": False},
-            {"type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"plain_text": "목록"}]}, "has_children": False},
+            {
+                "type": "heading_1",
+                "heading_1": {"rich_text": [{"plain_text": "제목"}]},
+                "has_children": False,
+            },
+            {
+                "type": "paragraph",
+                "paragraph": {"rich_text": [{"plain_text": "본문"}]},
+                "has_children": False,
+            },
+            {
+                "type": "bulleted_list_item",
+                "bulleted_list_item": {"rich_text": [{"plain_text": "목록"}]},
+                "has_children": False,
+            },
         ],
         "has_more": False,
     }
@@ -112,14 +123,22 @@ def test_extract_text_pagination():
     mock_client.blocks.children.list.side_effect = [
         {
             "results": [
-                {"type": "paragraph", "paragraph": {"rich_text": [{"plain_text": "첫 번째 페이지 내용"}]}, "has_children": False}
+                {
+                    "type": "paragraph",
+                    "paragraph": {"rich_text": [{"plain_text": "첫 번째 페이지 내용"}]},
+                    "has_children": False,
+                }
             ],
             "has_more": True,
             "next_cursor": "cursor-xyz",
         },
         {
             "results": [
-                {"type": "paragraph", "paragraph": {"rich_text": [{"plain_text": "두 번째 페이지 내용"}]}, "has_children": False}
+                {
+                    "type": "paragraph",
+                    "paragraph": {"rich_text": [{"plain_text": "두 번째 페이지 내용"}]},
+                    "has_children": False,
+                }
             ],
             "has_more": False,
         },
