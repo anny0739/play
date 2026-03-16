@@ -1,0 +1,5 @@
+streamlit>=1.32
+notion-client>=2.0
+pyperclip
+python-dotenv
+pytest
