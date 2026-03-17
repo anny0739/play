@@ -4,6 +4,7 @@
 let currentTea = null;
 let currentSteepIndex = 0;
 let timer = null;
+let audioCtx = null;
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const CIRCUMFERENCE = 2 * Math.PI * 90; // ≈ 565.49
@@ -32,12 +33,75 @@ function showView(name) {
 
 // ── Timer wiring ───────────────────────────────────────────────────────────
 function handleTimerComplete() {
-  // Phase 4: audio/vibration will be added here
-  console.log('Timer complete!');
+  // 1. Vibration
+  if ('vibrate' in navigator) {
+    navigator.vibrate([200, 100, 200, 100, 400]);
+  }
+
+  // 2. Audio — Web Audio API beep (no external file needed)
+  if (audioCtx) {
+    try {
+      audioCtx.resume().then(() => {
+        const playBeep = (freq, start, duration) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.value = freq;
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.4, audioCtx.currentTime + start);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + start + duration);
+          osc.start(audioCtx.currentTime + start);
+          osc.stop(audioCtx.currentTime + start + duration + 0.05);
+        };
+        playBeep(880, 0, 0.3);
+        playBeep(880, 0.4, 0.3);
+        playBeep(1100, 0.8, 0.6);
+      });
+    } catch (e) { /* silent fallback */ }
+  }
+
+  // 3. Browser Notification
+  const sendNotification = () => {
+    const teaName = currentTea ? currentTea.name : '차';
+    new Notification('차 우림 완료! ☕', {
+      body: `${teaName} ${currentSteepIndex + 1}회차 우림이 완료되었습니다.`,
+      icon: 'assets/icon-192.svg'
+    });
+  };
+
+  if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+      sendNotification();
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') sendNotification();
+      });
+    }
+  }
+
+  // 4. Highlight the "다음 우림" button
+  const btnNext = document.getElementById('btn-next');
+  if (btnNext) {
+    btnNext.classList.add('btn-next-pulse');
+  }
+
+  // 5. Timer done visual state
+  document.getElementById('view-timer').classList.add('timer-done');
+
   document.getElementById('btn-start-pause').textContent = '시작';
 }
 
+function clearCompletionState() {
+  document.getElementById('view-timer').classList.remove('timer-done');
+  const btnNext = document.getElementById('btn-next');
+  if (btnNext) btnNext.classList.remove('btn-next-pulse');
+}
+
 function startTimer(tea, steepIndex) {
+  // Remove completion state
+  clearCompletionState();
+
   // Cancel any existing timer
   if (timer) {
     timer.pause();
@@ -74,9 +138,15 @@ function startTimer(tea, steepIndex) {
 
 // ── Button handlers ────────────────────────────────────────────────────────
 document.getElementById('btn-start-pause').addEventListener('click', () => {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { audioCtx = null; }
+  }
   if (!timer) return;
   if (timer.state === 'done') {
     timer.reset();
+    clearCompletionState();
     document.getElementById('btn-start-pause').textContent = '시작';
     return;
   }
@@ -92,17 +162,20 @@ document.getElementById('btn-start-pause').addEventListener('click', () => {
 document.getElementById('btn-reset').addEventListener('click', () => {
   if (!timer) return;
   timer.reset();
+  clearCompletionState();
   document.getElementById('btn-start-pause').textContent = '시작';
 });
 
 document.getElementById('btn-back').addEventListener('click', () => {
   if (timer) { timer.pause(); timer = null; }
+  clearCompletionState();
   renderHome();
   showView('home');
 });
 
 document.getElementById('btn-next').addEventListener('click', () => {
   if (!currentTea) return;
+  clearCompletionState();
   const nextIndex = currentSteepIndex + 1;
   if (nextIndex >= currentTea.steeps.length) {
     // All steeps done — reset to 0 and go back home

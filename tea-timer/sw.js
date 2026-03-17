@@ -7,7 +7,9 @@ const URLS_TO_CACHE = [
   './js/timer.js',
   './js/presets.js',
   './js/storage.js',
-  './manifest.json'
+  './manifest.json',
+  './assets/icon-192.svg',
+  './assets/icon-512.svg'
 ];
 
 self.addEventListener('install', (event) => {
