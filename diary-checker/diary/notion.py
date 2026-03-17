@@ -43,7 +43,10 @@ class NotionDiaryClient:
         return None
 
     def extract_text(self, page_id: str) -> str:
-        """페이지의 모든 텍스트 블록을 추출하여 하나의 문자열로 반환한다."""
+        """페이지의 모든 텍스트 블록을 추출하여 하나의 문자열로 반환한다.
+
+        has_children=True인 블록(toggle, callout, quote 등)은 재귀적으로 하위 블록을 탐색한다.
+        """
         lines: list[str] = []
         cursor = None
 
@@ -61,6 +64,12 @@ class NotionDiaryClient:
                     text = "".join(rt.get("plain_text", "") for rt in rich_text)
                     if text:
                         lines.append(text)
+
+                # 하위 블록이 있으면 재귀 탐색 (텍스트 추출 여부와 무관하게 수행)
+                if block.get("has_children"):
+                    child_text = self.extract_text(block["id"])
+                    if child_text:
+                        lines.append(child_text)
 
             if not response.get("has_more"):
                 break

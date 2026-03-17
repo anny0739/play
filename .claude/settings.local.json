@@ -23,7 +23,13 @@
       "WebFetch(domain:gist.github.com)",
       "WebFetch(domain:www.mk.co.kr)",
       "WebFetch(domain:kenees.com)",
-      "Bash(pip3 list:*)"
+      "Bash(pip3 list *)",
+      "WebFetch(domain:developers.band.us)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(curl *)",
+      "Bash(python *)",
+      "Bash(claude config:*)",
+      "Bash(which claude:*)"
     ]
   }
 }

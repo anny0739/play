@@ -117,6 +117,89 @@ def test_extract_text_empty_page():
     assert diary.extract_text("empty-page-id") == ""
 
 
+def test_extract_text_nested_children():
+    """has_children=True인 블록(toggle 등)의 하위 텍스트를 재귀 탐색하여 추출한다"""
+    mock_client = MagicMock()
+    # 첫 번째 호출: 최상위 블록 (toggle, has_children=True)
+    # 두 번째 호출: toggle 하위 블록 (paragraph)
+    mock_client.blocks.children.list.side_effect = [
+        {
+            "results": [
+                {
+                    "id": "toggle-block-id",
+                    "type": "toggle",
+                    "toggle": {"rich_text": [{"plain_text": "토글 제목"}]},
+                    "has_children": True,
+                }
+            ],
+            "has_more": False,
+        },
+        {
+            "results": [
+                {
+                    "id": "child-block-id",
+                    "type": "paragraph",
+                    "paragraph": {"rich_text": [{"plain_text": "토글 안 본문"}]},
+                    "has_children": False,
+                }
+            ],
+            "has_more": False,
+        },
+    ]
+    diary = NotionDiaryClient(client=mock_client, parent_id=PARENT_ID)
+    text = diary.extract_text("some-page-id")
+    assert "토글 안 본문" in text
+    assert mock_client.blocks.children.list.call_count == 2
+
+
+def test_extract_text_deeply_nested():
+    """2단계 이상 중첩된 블록에서도 텍스트를 추출한다"""
+    mock_client = MagicMock()
+    # depth 0: callout (has_children=True)
+    # depth 1: bulleted_list_item (has_children=True)
+    # depth 2: paragraph (leaf)
+    mock_client.blocks.children.list.side_effect = [
+        {
+            "results": [
+                {
+                    "id": "callout-id",
+                    "type": "callout",
+                    "callout": {"rich_text": []},
+                    "has_children": True,
+                }
+            ],
+            "has_more": False,
+        },
+        {
+            "results": [
+                {
+                    "id": "list-id",
+                    "type": "bulleted_list_item",
+                    "bulleted_list_item": {"rich_text": [{"plain_text": "리스트 항목"}]},
+                    "has_children": True,
+                }
+            ],
+            "has_more": False,
+        },
+        {
+            "results": [
+                {
+                    "id": "para-id",
+                    "type": "paragraph",
+                    "paragraph": {"rich_text": [{"plain_text": "깊이 중첩된 본문"}]},
+                    "has_children": False,
+                }
+            ],
+            "has_more": False,
+        },
+    ]
+    diary = NotionDiaryClient(client=mock_client, parent_id=PARENT_ID)
+    text = diary.extract_text("some-page-id")
+    assert "리스트 항목" in text
+    assert "깊이 중첩된 본문" in text
+    assert mock_client.blocks.children.list.call_count == 3
+
+
 def test_extract_text_pagination():
     """has_more=True일 때 페이지네이션으로 모든 블록을 추출한다"""
     mock_client = MagicMock()

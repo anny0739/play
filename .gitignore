@@ -41,4 +41,8 @@ bin/
 .vscode/
 
 ### Mac OS ###
-.DS_Store.worktrees/
+.DS_Store
+.worktrees/
+
+### Environment ###
+.env

@@ -42,6 +42,7 @@ if st.button("오늘 일기 가져오기", type="primary"):
         else:
             text = notion.extract_text(page_id)
             st.session_state["diary_text"] = text
+            st.session_state["diary_input"] = text
 
 # 텍스트 입력 영역
 # NOTE: session_state["diary_text"]는 Notion fetch 결과를 저장하는 용도.
