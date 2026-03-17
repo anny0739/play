@@ -137,12 +137,30 @@ function startTimer(tea, steepIndex) {
 }
 
 // ── Button handlers ────────────────────────────────────────────────────────
-document.getElementById('btn-start-pause').addEventListener('click', () => {
+function unlockAudio() {
   if (!audioCtx) {
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (e) { audioCtx = null; }
+    } catch (e) { return; }
   }
+  // iOS requires playing a silent buffer during a user gesture to fully unlock audio
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const buf = audioCtx.createBuffer(1, 1, 22050);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(audioCtx.destination);
+  src.start(0);
+}
+
+// Re-unlock audio when app comes back to foreground (iOS suspends context on background)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+});
+
+document.getElementById('btn-start-pause').addEventListener('click', () => {
+  unlockAudio();
   if (!timer) return;
   if (timer.state === 'done') {
     timer.reset();
