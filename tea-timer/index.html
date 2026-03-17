@@ -23,13 +23,16 @@
         </div>
       </main>
     </div>
-    <div class="view" id="view-timer">
+    <!-- Timer bottom sheet (not a view — overlays home) -->
+    <div class="sheet-overlay" id="sheet-overlay"></div>
+    <div class="timer-sheet" id="timer-sheet">
+      <div class="sheet-handle"></div>
       <header class="timer-header">
-        <button class="btn-back" id="btn-back">←</button>
         <div class="timer-title">
           <span id="timer-tea-name">녹차</span>
           <span class="steep-label" id="timer-steep-label">1회차</span>
         </div>
+        <button class="btn-close-sheet" id="btn-back">✕</button>
       </header>
       <main class="timer-main">
         <div class="progress-ring-container">

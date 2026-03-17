@@ -31,6 +31,19 @@ function showView(name) {
   if (target) target.classList.add('active');
 }
 
+function openTimerSheet() {
+  document.getElementById('timer-sheet').classList.add('open');
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+
+function closeTimerSheet() {
+  document.getElementById('timer-sheet').classList.remove('open');
+  document.getElementById('sheet-overlay').classList.remove('open');
+  if (timer) { timer.pause(); timer = null; }
+  clearCompletionState();
+  renderHome();
+}
+
 // ── Timer wiring ───────────────────────────────────────────────────────────
 function handleTimerComplete() {
   // 1. Vibration
@@ -184,23 +197,18 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('btn-start-pause').textContent = '시작';
 });
 
-document.getElementById('btn-back').addEventListener('click', () => {
-  if (timer) { timer.pause(); timer = null; }
-  clearCompletionState();
-  renderHome();
-  showView('home');
-});
+document.getElementById('btn-back').addEventListener('click', closeTimerSheet);
+document.getElementById('sheet-overlay').addEventListener('click', closeTimerSheet);
 
 document.getElementById('btn-next').addEventListener('click', () => {
   if (!currentTea) return;
   clearCompletionState();
   const nextIndex = currentSteepIndex + 1;
   if (nextIndex >= currentTea.steeps.length) {
-    // All steeps done — reset to 0 and go back home
+    // All steeps done — reset and close sheet
     Storage.clearState(currentTea.id);
     timer = null;
-    showView('home');
-    renderHome();
+    closeTimerSheet();
     return;
   }
   // Advance to next steep
@@ -235,7 +243,7 @@ function selectTea(teaId) {
   const rawIndex = Storage.loadState(tea.id);
   const steepIndex = Math.min(rawIndex, tea.steeps.length - 1);
   startTimer(tea, steepIndex);
-  showView('timer');
+  openTimerSheet();
 }
 
 // ── Settings screen ─────────────────────────────────────────────────────────
