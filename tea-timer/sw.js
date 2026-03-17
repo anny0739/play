@@ -9,7 +9,9 @@ const URLS_TO_CACHE = [
   './js/storage.js',
   './manifest.json',
   './assets/icon-192.svg',
-  './assets/icon-512.svg'
+  './assets/icon-512.svg',
+  './assets/icon-192.png',
+  './assets/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
