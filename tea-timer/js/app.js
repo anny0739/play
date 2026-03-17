@@ -1,6 +1,7 @@
-// App — Phase 2
+// App — Phase 3 (one-page layout)
 
 // ── State ──────────────────────────────────────────────────────────────────
+let selectedTeaId = null;
 let currentTea = null;
 let currentSteepIndex = 0;
 let timer = null;
@@ -24,24 +25,27 @@ function updateProgress(remainingMs, totalMs) {
   document.getElementById('timer-display').textContent = formatTime(remainingMs);
 }
 
-// ── View management ────────────────────────────────────────────────────────
-function showView(name) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  const target = document.getElementById(`view-${name}`);
-  if (target) target.classList.add('active');
+// ── Tea Selector ────────────────────────────────────────────────────────────
+function renderTeaSelector() {
+  const selector = document.getElementById('tea-selector');
+  selector.innerHTML = '';
+  getActivePresets().forEach(tea => {
+    const chip = document.createElement('button');
+    chip.className = 'tea-chip' + (tea.id === selectedTeaId ? ' active' : '');
+    chip.textContent = `${tea.icon} ${tea.name}`;
+    chip.addEventListener('click', () => selectTea(tea.id));
+    selector.appendChild(chip);
+  });
 }
 
-function openTimerSheet() {
-  document.getElementById('timer-sheet').classList.add('open');
-  document.getElementById('sheet-overlay').classList.add('open');
-}
-
-function closeTimerSheet() {
-  document.getElementById('timer-sheet').classList.remove('open');
-  document.getElementById('sheet-overlay').classList.remove('open');
-  if (timer) { timer.pause(); timer = null; }
-  clearCompletionState();
-  renderHome();
+function selectTea(teaId) {
+  const tea = getActivePresets().find(t => t.id === teaId);
+  if (!tea) return;
+  selectedTeaId = teaId;
+  renderTeaSelector();
+  const rawIndex = Storage.loadState(tea.id);
+  const steepIndex = Math.min(rawIndex, tea.steeps.length - 1);
+  startTimer(tea, steepIndex);
 }
 
 // ── Timer wiring ───────────────────────────────────────────────────────────
@@ -95,31 +99,24 @@ function handleTimerComplete() {
 
   // 4. Highlight the "다음 우림" button
   const btnNext = document.getElementById('btn-next');
-  if (btnNext) {
-    btnNext.classList.add('btn-next-pulse');
-  }
+  if (btnNext) btnNext.classList.add('btn-next-pulse');
 
   // 5. Timer done visual state
-  document.getElementById('view-timer').classList.add('timer-done');
+  document.getElementById('timer-area').classList.add('timer-done');
 
   document.getElementById('btn-start-pause').textContent = '시작';
 }
 
 function clearCompletionState() {
-  document.getElementById('view-timer').classList.remove('timer-done');
+  document.getElementById('timer-area').classList.remove('timer-done');
   const btnNext = document.getElementById('btn-next');
   if (btnNext) btnNext.classList.remove('btn-next-pulse');
 }
 
 function startTimer(tea, steepIndex) {
-  // Remove completion state
   clearCompletionState();
 
-  // Cancel any existing timer
-  if (timer) {
-    timer.pause();
-    timer = null;
-  }
+  if (timer) { timer.pause(); timer = null; }
 
   currentTea = tea;
   currentSteepIndex = steepIndex;
@@ -135,17 +132,50 @@ function startTimer(tea, steepIndex) {
     handleTimerComplete
   );
 
-  // Update header
-  document.getElementById('timer-tea-name').textContent = tea.name;
-  document.getElementById('timer-steep-label').textContent = `${steepIndex + 1}회차`;
-
-  // Update steep info
   document.getElementById('steep-info').textContent =
-    `${steepIndex + 1} / ${tea.steeps.length} 회차`;
+    `${steepIndex + 1} / ${tea.steeps.length} 회차${tea.temp ? ' · ' + tea.temp : ''}`;
 
-  // Reset display to full duration
   document.getElementById('timer-display').textContent = formatTime(durationSeconds * 1000);
   updateProgress(durationSeconds * 1000, durationSeconds * 1000);
+  document.getElementById('btn-start-pause').textContent = '시작';
+}
+
+// ── Inline time adjustment ─────────────────────────────────────────────────
+function adjustTime(delta) {
+  if (!timer || (timer.state !== 'idle' && timer.state !== 'paused')) return;
+  if (!currentTea) return;
+
+  const newSteeps = [...currentTea.steeps];
+  newSteeps[currentSteepIndex] = Math.max(5, newSteeps[currentSteepIndex] + delta);
+
+  const isDefault = DEFAULT_PRESETS.find(p => p.id === currentTea.id);
+  if (isDefault) {
+    Storage.saveSteepOverride(currentTea.id, newSteeps);
+  } else {
+    const customs = Storage.loadCustomPresets();
+    const idx = customs.findIndex(p => p.id === currentTea.id);
+    if (idx !== -1) {
+      customs[idx] = { ...customs[idx], steeps: newSteeps };
+      Storage.saveCustomPresets(customs);
+    }
+  }
+
+  currentTea = { ...currentTea, steeps: newSteeps };
+  timer.pause();
+  timer = null;
+
+  const newDuration = newSteeps[currentSteepIndex];
+  timer = new Timer(
+    newDuration,
+    (remainingMs, totalMs) => {
+      document.getElementById('timer-display').textContent = formatTime(remainingMs);
+      updateProgress(remainingMs, totalMs);
+    },
+    handleTimerComplete
+  );
+
+  document.getElementById('timer-display').textContent = formatTime(newDuration * 1000);
+  updateProgress(newDuration * 1000, newDuration * 1000);
   document.getElementById('btn-start-pause').textContent = '시작';
 }
 
@@ -156,7 +186,6 @@ function unlockAudio() {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) { return; }
   }
-  // iOS requires playing a silent buffer during a user gesture to fully unlock audio
   if (audioCtx.state === 'suspended') audioCtx.resume();
   const buf = audioCtx.createBuffer(1, 1, 22050);
   const src = audioCtx.createBufferSource();
@@ -165,7 +194,7 @@ function unlockAudio() {
   src.start(0);
 }
 
-// Re-unlock audio when app comes back to foreground (iOS suspends context on background)
+// Re-unlock audio when app comes back to foreground
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume();
@@ -197,56 +226,57 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('btn-start-pause').textContent = '시작';
 });
 
-document.getElementById('btn-back').addEventListener('click', closeTimerSheet);
-document.getElementById('sheet-overlay').addEventListener('click', closeTimerSheet);
-
 document.getElementById('btn-next').addEventListener('click', () => {
   if (!currentTea) return;
   clearCompletionState();
   const nextIndex = currentSteepIndex + 1;
   if (nextIndex >= currentTea.steeps.length) {
-    // All steeps done — reset and close sheet
+    // All steeps done — reset state and restart from steep 1
     Storage.clearState(currentTea.id);
     timer = null;
-    closeTimerSheet();
+    selectTea(currentTea.id);
     return;
   }
-  // Advance to next steep
   Storage.saveState(currentTea.id, nextIndex);
   startTimer(currentTea, nextIndex);
 });
 
-// ── Home screen ────────────────────────────────────────────────────────────
-function renderHome() {
-  const grid = document.getElementById('tea-grid');
-  grid.innerHTML = '';
-  getActivePresets().forEach(tea => {
-    const steepIndex = Storage.loadState(tea.id);
-    const card = document.createElement('div');
-    card.className = 'tea-card';
-    card.innerHTML = `
-      <div class="tea-icon">${tea.icon}</div>
-      <div class="tea-name">${tea.name}</div>
-      <div class="tea-steep">${steepIndex + 1} / ${tea.steeps.length} 회차</div>
-      <div class="tea-temp">${tea.temp}</div>
-    `;
-    card.addEventListener('click', () => {
-      selectTea(tea.id);
-    });
-    grid.appendChild(card);
-  });
+document.getElementById('btn-time-minus').addEventListener('click', () => adjustTime(-5));
+document.getElementById('btn-time-plus').addEventListener('click', () => adjustTime(5));
+
+// ── Settings modal ──────────────────────────────────────────────────────────
+function openSettings() {
+  renderSettings();
+  document.getElementById('settings-modal').style.display = 'flex';
 }
 
-function selectTea(teaId) {
-  const tea = getActivePresets().find(t => t.id === teaId);
-  if (!tea) return;
-  const rawIndex = Storage.loadState(tea.id);
-  const steepIndex = Math.min(rawIndex, tea.steeps.length - 1);
-  startTimer(tea, steepIndex);
-  openTimerSheet();
+function closeSettings() {
+  document.getElementById('settings-modal').style.display = 'none';
 }
 
-// ── Settings screen ─────────────────────────────────────────────────────────
+document.getElementById('btn-settings').addEventListener('click', openSettings);
+document.getElementById('btn-settings-close').addEventListener('click', closeSettings);
+document.getElementById('settings-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('settings-modal')) closeSettings();
+});
+
+document.getElementById('btn-add-preset').addEventListener('click', () => {
+  openAddModal();
+});
+
+document.getElementById('presets-list').addEventListener('click', e => {
+  const editBtn = e.target.closest('.btn-edit-preset');
+  const deleteBtn = e.target.closest('.btn-delete-preset');
+  if (editBtn) {
+    openEditModal(editBtn.dataset.id);
+  } else if (deleteBtn) {
+    removeCustomPreset(deleteBtn.dataset.id);
+    renderSettings();
+    renderTeaSelector();
+  }
+});
+
+// ── Settings content ─────────────────────────────────────────────────────────
 function renderSettings() {
   const list = document.getElementById('presets-list');
   list.innerHTML = '';
@@ -270,7 +300,7 @@ function renderSettings() {
 }
 
 // ── Modal logic ─────────────────────────────────────────────────────────────
-let modalTeaId = null; // null = adding new preset
+let modalTeaId = null;
 
 function renderSteepsEditor(steeps) {
   const editor = document.getElementById('steeps-editor');
@@ -337,7 +367,6 @@ function saveModal() {
   if (steeps.length === 0) return;
 
   if (modalTeaId === null) {
-    // New custom preset
     const icon = document.getElementById('edit-icon').value.trim() || '🍵';
     const name = document.getElementById('edit-name').value.trim();
     const temp = document.getElementById('edit-temp').value.trim() || '';
@@ -352,7 +381,6 @@ function saveModal() {
   } else {
     const isCustom = !DEFAULT_PRESETS.find(p => p.id === modalTeaId);
     if (isCustom) {
-      // Update custom preset fully
       const customs = Storage.loadCustomPresets();
       const idx = customs.findIndex(p => p.id === modalTeaId);
       if (idx !== -1) {
@@ -366,46 +394,14 @@ function saveModal() {
         Storage.saveCustomPresets(customs);
       }
     } else {
-      // Default preset — only update steeps via override
       updateDefaultSteeps(modalTeaId, steeps);
     }
   }
 
   closeModal();
   renderSettings();
+  renderTeaSelector();
 }
-
-// ── Settings sheet ─────────────────────────────────────────────────────────
-function openSettingsSheet() {
-  renderSettings();
-  document.getElementById('settings-sheet').classList.add('open');
-  document.getElementById('settings-overlay').classList.add('open');
-}
-
-function closeSettingsSheet() {
-  document.getElementById('settings-sheet').classList.remove('open');
-  document.getElementById('settings-overlay').classList.remove('open');
-}
-
-// Settings event listeners
-document.getElementById('btn-settings').addEventListener('click', openSettingsSheet);
-document.getElementById('btn-settings-back').addEventListener('click', closeSettingsSheet);
-document.getElementById('settings-overlay').addEventListener('click', closeSettingsSheet);
-
-document.getElementById('btn-add-preset').addEventListener('click', () => {
-  openAddModal();
-});
-
-document.getElementById('presets-list').addEventListener('click', e => {
-  const editBtn = e.target.closest('.btn-edit-preset');
-  const deleteBtn = e.target.closest('.btn-delete-preset');
-  if (editBtn) {
-    openEditModal(editBtn.dataset.id);
-  } else if (deleteBtn) {
-    removeCustomPreset(deleteBtn.dataset.id);
-    renderSettings();
-  }
-});
 
 document.getElementById('btn-add-steep').addEventListener('click', () => {
   const inputs = document.querySelectorAll('#steeps-editor input[type="number"]');
@@ -433,6 +429,9 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  showView('home');
-  renderHome();
+  renderTeaSelector();
+  const presets = getActivePresets();
+  if (presets.length > 0) {
+    selectTea(presets[0].id);
+  }
 });

@@ -38,91 +38,119 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  min-height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   line-height: 1.5;
 }
 
-.view {
-  display: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.view.active {
+/* === Root container === */
+#root {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  opacity: 1;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
-/* === Timer Bottom Sheet === */
-.sheet-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 50;
-}
-.sheet-overlay.open { display: block; }
-
-.timer-sheet {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  background: var(--surface);
-  border-radius: 20px 20px 0 0;
-  z-index: 51;
+/* === App Header === */
+.app-header {
   display: flex;
-  flex-direction: column;
-  transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-  max-height: 92vh;
-}
-.timer-sheet.open { transform: translateY(0); }
-
-.sheet-handle {
-  width: 36px; height: 4px;
-  background: var(--surface2);
-  border-radius: 2px;
-  margin: 10px auto 0;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top));
   flex-shrink: 0;
 }
-
-.timer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px 0;
+.app-header h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
 }
-.btn-close-sheet {
-  background: var(--surface2);
+.btn-settings {
+  background: none;
   border: none;
-  color: var(--text-muted);
-  font-size: 1rem;
+  font-size: 1.4rem;
   cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 20px;
-  min-width: 44px; min-height: 44px;
+  padding: 8px;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
 }
-.timer-title {
-  display: flex;
-  flex-direction: column;
-}
-.timer-title span:first-child { font-size: 1.3rem; font-weight: 600; }
-.steep-label { font-size: 0.9rem; color: var(--text-muted); }
 
-.timer-main {
+/* === Tea Selector === */
+.tea-selector {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: 8px;
+  padding: 4px 16px 12px;
+  flex-shrink: 0;
+}
+.tea-selector::-webkit-scrollbar { display: none; }
+
+.tea-chip {
+  border: none;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  cursor: pointer;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.tea-chip.active {
+  background: var(--accent);
+  color: white;
+}
+.tea-chip:active { opacity: 0.8; }
+
+/* === Timer Area === */
+.timer-area {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 24px;
+  padding: 16px;
+  min-height: 0;
 }
+
+.timer-ring-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-time-adjust {
+  background: var(--surface2);
+  border: none;
+  color: var(--text);
+  font-size: 1.5rem;
+  cursor: pointer;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-time-adjust:active { background: var(--accent); }
+
 .progress-ring-container {
   position: relative;
-  width: 240px;
-  height: 240px;
+  width: 220px;
+  height: 220px;
 }
 .progress-ring {
   width: 100%;
@@ -148,25 +176,25 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3.5rem;
+  font-size: 3.2rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text);
-  /* counter the SVG rotation */
-  transform: none;
 }
 .steep-info {
   color: var(--text-muted);
   font-size: 0.95rem;
 }
 
+/* === Timer Controls (fixed footer) === */
 .timer-controls {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 16px;
-  padding: 24px 16px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  flex-shrink: 0;
 }
 .btn-control {
   border: none;
@@ -193,47 +221,6 @@ body {
   color: var(--accent-light);
 }
 
-/* === Home View === */
-.home-header {
-  padding: 24px 16px 8px;
-  padding-top: calc(24px + env(safe-area-inset-top));
-}
-.home-header h1 {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--text);
-}
-.home-main {
-  flex: 1;
-  padding: 16px;
-  overflow-y: auto;
-}
-.tea-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-.tea-card {
-  background: var(--surface);
-  border-radius: 16px;
-  padding: 20px 16px;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 130px;
-  -webkit-tap-highlight-color: transparent;
-}
-.tea-card:active {
-  background: var(--surface2);
-  transform: scale(0.97);
-}
-.tea-icon { font-size: 2rem; }
-.tea-name { font-size: 1.1rem; font-weight: 600; }
-.tea-steep { font-size: 0.85rem; color: var(--accent-light); font-weight: 500; }
-.tea-temp { font-size: 0.8rem; color: var(--text-muted); }
-
 /* === Notifications & completion state === */
 .btn-next-pulse {
   animation: pulse 1s ease-in-out infinite;
@@ -245,21 +232,7 @@ body {
   50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(74, 124, 89, 0); }
 }
 
-/* === Dark mode === */
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f0f5f1;
-    --surface: #dce9de;
-    --surface2: #c8dccb;
-    --accent: #2d6e42;
-    --accent-light: #3a8f56;
-    --text: #1a2e1f;
-    --text-muted: #4a6b52;
-    --danger: #c0392b;
-  }
-}
-
-/* === Completion overlay on timer === */
+/* === Completion state === */
 .timer-done .progress-bar {
   stroke: var(--text-muted);
   stroke-dashoffset: 565.49;
@@ -268,60 +241,33 @@ body {
   color: var(--accent-light);
 }
 
-/* === Settings Bottom Sheet === */
-.settings-sheet {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  background: var(--surface);
-  border-radius: 20px 20px 0 0;
-  z-index: 51;
-  display: flex;
-  flex-direction: column;
-  transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-  max-height: 92vh;
-}
-.settings-sheet.open { transform: translateY(0); }
-
-.settings-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px 0;
-}
-.settings-header h2 { font-size: 1.3rem; font-weight: 600; }
-.settings-main {
-  padding: 16px;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-}
-
-/* === Home Header === */
-.home-header {
+/* === Settings Modal === */
+.settings-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-.btn-settings {
-  background: none;
+.settings-modal-header h3 { font-size: 1.3rem; font-weight: 600; }
+.btn-close-modal {
+  background: var(--surface2);
   border: none;
-  font-size: 1.4rem;
+  color: var(--text-muted);
+  font-size: 1rem;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
-  -webkit-tap-highlight-color: transparent;
+  padding: 6px 10px;
+  border-radius: 20px;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .preset-item {
-  background: var(--surface);
+  background: var(--surface2);
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: 8px;
 }
 .preset-icon { font-size: 1.5rem; }
 .preset-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -336,7 +282,7 @@ body {
   cursor: pointer;
   min-height: 44px;
 }
-.btn-edit-preset { background: var(--surface2); color: var(--text); }
+.btn-edit-preset { background: var(--surface); color: var(--text); }
 .btn-delete-preset { background: var(--danger); color: white; }
 .btn-add-preset {
   background: var(--accent);
@@ -349,6 +295,7 @@ body {
   cursor: pointer;
   margin-top: 8px;
   min-height: 44px;
+  width: 100%;
 }
 
 /* === Modal === */
@@ -426,3 +373,17 @@ body {
 }
 .btn-modal-cancel { background: var(--surface2); color: var(--text); }
 .btn-modal-save { background: var(--accent); color: white; }
+
+/* === Dark mode === */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f0f5f1;
+    --surface: #dce9de;
+    --surface2: #c8dccb;
+    --accent: #2d6e42;
+    --accent-light: #3a8f56;
+    --text: #1a2e1f;
+    --text-muted: #4a6b52;
+    --danger: #c0392b;
+  }
+}

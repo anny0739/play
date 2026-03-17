@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tea-timer-v1';
+const CACHE_NAME = 'tea-timer-v3';
 const URLS_TO_CACHE = [
   './',
   './index.html',
