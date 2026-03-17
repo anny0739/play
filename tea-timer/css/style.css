@@ -51,3 +51,109 @@ body {
   flex-direction: column;
   min-height: 100vh;
 }
+
+/* === Timer View === */
+.timer-header {
+  display: flex;
+  align-items: center;
+  padding: 16px 16px 0;
+  gap: 12px;
+}
+.btn-back {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+}
+.timer-title {
+  display: flex;
+  flex-direction: column;
+}
+.timer-title span:first-child { font-size: 1.3rem; font-weight: 600; }
+.steep-label { font-size: 0.9rem; color: var(--text-muted); }
+
+.timer-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+}
+.progress-ring-container {
+  position: relative;
+  width: 240px;
+  height: 240px;
+}
+.progress-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.progress-track {
+  fill: none;
+  stroke: var(--surface2);
+  stroke-width: 12;
+}
+.progress-bar {
+  fill: none;
+  stroke: var(--accent-light);
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-dasharray: 565.49;
+  stroke-dashoffset: 0;
+}
+.timer-display {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  /* counter the SVG rotation */
+  transform: none;
+}
+.steep-info {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.timer-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 16px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+.btn-control {
+  border: none;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 14px 28px;
+  min-width: 44px;
+  min-height: 44px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  font-size: 1.1rem;
+  padding: 16px 40px;
+}
+.btn-secondary {
+  background: var(--surface2);
+  color: var(--text);
+}
+.btn-next {
+  background: var(--surface2);
+  color: var(--accent-light);
+}

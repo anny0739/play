@@ -13,7 +13,30 @@
 <body>
   <div id="root">
     <div class="view" id="view-home"></div>
-    <div class="view" id="view-timer"></div>
+    <div class="view" id="view-timer">
+      <header class="timer-header">
+        <button class="btn-back" id="btn-back">←</button>
+        <div class="timer-title">
+          <span id="timer-tea-name">녹차</span>
+          <span class="steep-label" id="timer-steep-label">1회차</span>
+        </div>
+      </header>
+      <main class="timer-main">
+        <div class="progress-ring-container">
+          <svg viewBox="0 0 220 220" class="progress-ring" id="progress-svg">
+            <circle class="progress-track" cx="110" cy="110" r="90"/>
+            <circle class="progress-bar" id="progress-bar" cx="110" cy="110" r="90"/>
+          </svg>
+          <div class="timer-display" id="timer-display">00:00</div>
+        </div>
+        <div class="steep-info" id="steep-info">1 / 5 회차</div>
+      </main>
+      <footer class="timer-controls">
+        <button class="btn-control btn-secondary" id="btn-reset">리셋</button>
+        <button class="btn-control btn-primary" id="btn-start-pause">시작</button>
+        <button class="btn-control btn-next" id="btn-next">다음 우림</button>
+      </footer>
+    </div>
     <div class="view" id="view-settings"></div>
   </div>
 
