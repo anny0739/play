@@ -375,16 +375,22 @@ function saveModal() {
   renderSettings();
 }
 
-// Settings event listeners
-document.getElementById('btn-settings').addEventListener('click', () => {
+// ── Settings sheet ─────────────────────────────────────────────────────────
+function openSettingsSheet() {
   renderSettings();
-  showView('settings');
-});
+  document.getElementById('settings-sheet').classList.add('open');
+  document.getElementById('settings-overlay').classList.add('open');
+}
 
-document.getElementById('btn-settings-back').addEventListener('click', () => {
-  showView('home');
-  renderHome();
-});
+function closeSettingsSheet() {
+  document.getElementById('settings-sheet').classList.remove('open');
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+// Settings event listeners
+document.getElementById('btn-settings').addEventListener('click', openSettingsSheet);
+document.getElementById('btn-settings-back').addEventListener('click', closeSettingsSheet);
+document.getElementById('settings-overlay').addEventListener('click', closeSettingsSheet);
 
 document.getElementById('btn-add-preset').addEventListener('click', () => {
   openAddModal();
