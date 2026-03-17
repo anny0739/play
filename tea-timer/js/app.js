@@ -96,19 +96,59 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 });
 
 document.getElementById('btn-back').addEventListener('click', () => {
-  if (timer) {
-    timer.pause();
-  }
+  if (timer) { timer.pause(); timer = null; }
+  renderHome();
   showView('home');
 });
 
-// Phase 3: btn-next and home view will be wired here
 document.getElementById('btn-next').addEventListener('click', () => {
-  // stub — Phase 3
-  console.log('btn-next: Phase 3');
+  if (!currentTea) return;
+  const nextIndex = currentSteepIndex + 1;
+  if (nextIndex >= currentTea.steeps.length) {
+    // All steeps done — reset to 0 and go back home
+    Storage.clearState(currentTea.id);
+    timer = null;
+    showView('home');
+    renderHome();
+    return;
+  }
+  // Advance to next steep
+  Storage.saveState(currentTea.id, nextIndex);
+  startTimer(currentTea, nextIndex);
 });
+
+// ── Home screen ────────────────────────────────────────────────────────────
+function renderHome() {
+  const grid = document.getElementById('tea-grid');
+  grid.innerHTML = '';
+  DEFAULT_PRESETS.forEach(tea => {
+    const steepIndex = Storage.loadState(tea.id);
+    const card = document.createElement('div');
+    card.className = 'tea-card';
+    card.innerHTML = `
+      <div class="tea-icon">${tea.icon}</div>
+      <div class="tea-name">${tea.name}</div>
+      <div class="tea-steep">${steepIndex + 1} / ${tea.steeps.length} 회차</div>
+      <div class="tea-temp">${tea.temp}</div>
+    `;
+    card.addEventListener('click', () => {
+      selectTea(tea.id);
+    });
+    grid.appendChild(card);
+  });
+}
+
+function selectTea(teaId) {
+  const tea = DEFAULT_PRESETS.find(t => t.id === teaId);
+  if (!tea) return;
+  const rawIndex = Storage.loadState(tea.id);
+  const steepIndex = Math.min(rawIndex, tea.steeps.length - 1);
+  startTimer(tea, steepIndex);
+  showView('timer');
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   showView('home');
+  renderHome();
 });

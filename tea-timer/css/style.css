@@ -44,12 +44,15 @@ body {
 
 .view {
   display: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .view.active {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  opacity: 1;
 }
 
 /* === Timer View === */
@@ -157,3 +160,44 @@ body {
   background: var(--surface2);
   color: var(--accent-light);
 }
+
+/* === Home View === */
+.home-header {
+  padding: 24px 16px 8px;
+  padding-top: calc(24px + env(safe-area-inset-top));
+}
+.home-header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.home-main {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+.tea-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.tea-card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px 16px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 130px;
+  -webkit-tap-highlight-color: transparent;
+}
+.tea-card:active {
+  background: var(--surface2);
+  transform: scale(0.97);
+}
+.tea-icon { font-size: 2rem; }
+.tea-name { font-size: 1.1rem; font-weight: 600; }
+.tea-steep { font-size: 0.85rem; color: var(--accent-light); font-weight: 500; }
+.tea-temp { font-size: 0.8rem; color: var(--text-muted); }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,7 +12,16 @@
 </head>
 <body>
   <div id="root">
-    <div class="view" id="view-home"></div>
+    <div class="view" id="view-home">
+      <header class="home-header">
+        <h1>🍵 Tea Timer</h1>
+      </header>
+      <main class="home-main">
+        <div class="tea-grid" id="tea-grid">
+          <!-- populated by JS -->
+        </div>
+      </main>
+    </div>
     <div class="view" id="view-timer">
       <header class="timer-header">
         <button class="btn-back" id="btn-back">←</button>
