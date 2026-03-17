@@ -8,3 +8,27 @@ const DEFAULT_PRESETS = [
 
 Object.freeze(DEFAULT_PRESETS);
 DEFAULT_PRESETS.forEach(Object.freeze);
+
+function getActivePresets() {
+  const customs = Storage.loadCustomPresets();
+  const base = DEFAULT_PRESETS.map(p => {
+    const override = Storage.loadSteepOverride(p.id);
+    return override ? { ...p, steeps: override } : p;
+  });
+  return [...base, ...customs];
+}
+
+function addCustomPreset(preset) {
+  const customs = Storage.loadCustomPresets();
+  customs.push(preset);
+  Storage.saveCustomPresets(customs);
+}
+
+function removeCustomPreset(id) {
+  const customs = Storage.loadCustomPresets();
+  Storage.saveCustomPresets(customs.filter(p => p.id !== id));
+}
+
+function updateDefaultSteeps(id, steeps) {
+  Storage.saveSteepOverride(id, steeps);
+}

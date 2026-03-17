@@ -212,7 +212,7 @@ document.getElementById('btn-next').addEventListener('click', () => {
 function renderHome() {
   const grid = document.getElementById('tea-grid');
   grid.innerHTML = '';
-  DEFAULT_PRESETS.forEach(tea => {
+  getActivePresets().forEach(tea => {
     const steepIndex = Storage.loadState(tea.id);
     const card = document.createElement('div');
     card.className = 'tea-card';
@@ -230,13 +230,192 @@ function renderHome() {
 }
 
 function selectTea(teaId) {
-  const tea = DEFAULT_PRESETS.find(t => t.id === teaId);
+  const tea = getActivePresets().find(t => t.id === teaId);
   if (!tea) return;
   const rawIndex = Storage.loadState(tea.id);
   const steepIndex = Math.min(rawIndex, tea.steeps.length - 1);
   startTimer(tea, steepIndex);
   showView('timer');
 }
+
+// ── Settings screen ─────────────────────────────────────────────────────────
+function renderSettings() {
+  const list = document.getElementById('presets-list');
+  list.innerHTML = '';
+  getActivePresets().forEach(tea => {
+    const item = document.createElement('div');
+    item.className = 'preset-item';
+    const isCustom = !DEFAULT_PRESETS.find(p => p.id === tea.id);
+    item.innerHTML = `
+      <span class="preset-icon">${tea.icon}</span>
+      <div class="preset-info">
+        <span class="preset-name">${tea.name}</span>
+        <span class="preset-steeps">${tea.steeps.length}회차 · ${tea.temp}</span>
+      </div>
+      <div class="preset-actions">
+        <button class="btn-edit-preset" data-id="${tea.id}">편집</button>
+        ${isCustom ? `<button class="btn-delete-preset" data-id="${tea.id}">삭제</button>` : ''}
+      </div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+// ── Modal logic ─────────────────────────────────────────────────────────────
+let modalTeaId = null; // null = adding new preset
+
+function renderSteepsEditor(steeps) {
+  const editor = document.getElementById('steeps-editor');
+  editor.innerHTML = '';
+  steeps.forEach((sec, idx) => {
+    const row = document.createElement('div');
+    row.className = 'steep-row';
+    row.innerHTML = `
+      <label>${idx + 1}회차</label>
+      <input type="number" min="1" value="${sec}" data-idx="${idx}">
+      <button class="btn-remove-steep" data-idx="${idx}">✕</button>
+    `;
+    editor.appendChild(row);
+  });
+}
+
+function getSteepsFromEditor() {
+  const inputs = document.querySelectorAll('#steeps-editor input[type="number"]');
+  const steeps = [];
+  inputs.forEach(input => {
+    const val = parseInt(input.value, 10);
+    if (val > 0) steeps.push(val);
+  });
+  return steeps;
+}
+
+function openEditModal(teaId) {
+  const tea = getActivePresets().find(t => t.id === teaId);
+  if (!tea) return;
+  modalTeaId = teaId;
+  const isCustom = !DEFAULT_PRESETS.find(p => p.id === teaId);
+
+  document.getElementById('modal-title').textContent = '차 편집';
+  document.getElementById('edit-icon').value = tea.icon;
+  document.getElementById('edit-icon').disabled = !isCustom;
+  document.getElementById('edit-name').value = tea.name;
+  document.getElementById('edit-name').disabled = !isCustom;
+  document.getElementById('edit-temp').value = tea.temp;
+  document.getElementById('edit-temp').disabled = !isCustom;
+  renderSteepsEditor(tea.steeps);
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function openAddModal() {
+  modalTeaId = null;
+  document.getElementById('modal-title').textContent = '새 차 추가';
+  document.getElementById('edit-icon').value = '';
+  document.getElementById('edit-icon').disabled = false;
+  document.getElementById('edit-name').value = '';
+  document.getElementById('edit-name').disabled = false;
+  document.getElementById('edit-temp').value = '';
+  document.getElementById('edit-temp').disabled = false;
+  renderSteepsEditor([60]);
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+  modalTeaId = null;
+}
+
+function saveModal() {
+  const steeps = getSteepsFromEditor();
+  if (steeps.length === 0) return;
+
+  if (modalTeaId === null) {
+    // New custom preset
+    const icon = document.getElementById('edit-icon').value.trim() || '🍵';
+    const name = document.getElementById('edit-name').value.trim();
+    const temp = document.getElementById('edit-temp').value.trim() || '';
+    if (!name) return;
+    addCustomPreset({
+      id: `custom_${Date.now()}`,
+      icon,
+      name,
+      temp,
+      steeps
+    });
+  } else {
+    const isCustom = !DEFAULT_PRESETS.find(p => p.id === modalTeaId);
+    if (isCustom) {
+      // Update custom preset fully
+      const customs = Storage.loadCustomPresets();
+      const idx = customs.findIndex(p => p.id === modalTeaId);
+      if (idx !== -1) {
+        customs[idx] = {
+          ...customs[idx],
+          icon: document.getElementById('edit-icon').value.trim() || customs[idx].icon,
+          name: document.getElementById('edit-name').value.trim() || customs[idx].name,
+          temp: document.getElementById('edit-temp').value.trim(),
+          steeps
+        };
+        Storage.saveCustomPresets(customs);
+      }
+    } else {
+      // Default preset — only update steeps via override
+      updateDefaultSteeps(modalTeaId, steeps);
+    }
+  }
+
+  closeModal();
+  renderSettings();
+}
+
+// Settings event listeners
+document.getElementById('btn-settings').addEventListener('click', () => {
+  renderSettings();
+  showView('settings');
+});
+
+document.getElementById('btn-settings-back').addEventListener('click', () => {
+  showView('home');
+  renderHome();
+});
+
+document.getElementById('btn-add-preset').addEventListener('click', () => {
+  openAddModal();
+});
+
+document.getElementById('presets-list').addEventListener('click', e => {
+  const editBtn = e.target.closest('.btn-edit-preset');
+  const deleteBtn = e.target.closest('.btn-delete-preset');
+  if (editBtn) {
+    openEditModal(editBtn.dataset.id);
+  } else if (deleteBtn) {
+    removeCustomPreset(deleteBtn.dataset.id);
+    renderSettings();
+  }
+});
+
+document.getElementById('btn-add-steep').addEventListener('click', () => {
+  const inputs = document.querySelectorAll('#steeps-editor input[type="number"]');
+  const lastVal = inputs.length > 0 ? parseInt(inputs[inputs.length - 1].value, 10) || 60 : 60;
+  const currentSteeps = getSteepsFromEditor();
+  currentSteeps.push(lastVal);
+  renderSteepsEditor(currentSteeps);
+});
+
+document.getElementById('steeps-editor').addEventListener('click', e => {
+  const removeBtn = e.target.closest('.btn-remove-steep');
+  if (!removeBtn) return;
+  const idx = parseInt(removeBtn.dataset.idx, 10);
+  const currentSteeps = getSteepsFromEditor();
+  currentSteeps.splice(idx, 1);
+  renderSteepsEditor(currentSteeps);
+});
+
+document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
+document.getElementById('btn-modal-save').addEventListener('click', saveModal);
+
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
 
 // ── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {

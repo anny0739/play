@@ -15,6 +15,7 @@
     <div class="view" id="view-home">
       <header class="home-header">
         <h1>🍵 Tea Timer</h1>
+        <button class="btn-settings" id="btn-settings">⚙️</button>
       </header>
       <main class="home-main">
         <div class="tea-grid" id="tea-grid">
@@ -46,7 +47,44 @@
         <button class="btn-control btn-next" id="btn-next">다음 우림</button>
       </footer>
     </div>
-    <div class="view" id="view-settings"></div>
+    <div class="view" id="view-settings">
+      <header class="settings-header">
+        <button class="btn-back" id="btn-settings-back">←</button>
+        <h2>프리셋 관리</h2>
+      </header>
+      <main class="settings-main">
+        <div id="presets-list"></div>
+        <button class="btn-add-preset" id="btn-add-preset">+ 새 차 추가</button>
+      </main>
+    </div>
+
+    <!-- 프리셋 편집 모달 -->
+    <div class="modal-overlay" id="modal-overlay" style="display:none">
+      <div class="modal">
+        <h3 id="modal-title">차 편집</h3>
+        <div class="modal-field">
+          <label>아이콘 (이모지)</label>
+          <input type="text" id="edit-icon" maxlength="2" placeholder="🍵">
+        </div>
+        <div class="modal-field">
+          <label>이름</label>
+          <input type="text" id="edit-name" placeholder="차 이름">
+        </div>
+        <div class="modal-field">
+          <label>권장 온도</label>
+          <input type="text" id="edit-temp" placeholder="80-90°C">
+        </div>
+        <div class="modal-field">
+          <label>회차별 우림 시간 (초)</label>
+          <div id="steeps-editor"></div>
+          <button class="btn-add-steep" id="btn-add-steep">+ 회차 추가</button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-modal-cancel" id="btn-modal-cancel">취소</button>
+          <button class="btn-modal-save" id="btn-modal-save">저장</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="js/storage.js" defer></script>
